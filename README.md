@@ -1,2 +1,4 @@
 # Quixotic
-![Alt text](gi_map.png?raw=true "simple map")
+<p align="center">
+  <img src="gi_map.png" width="300"/>
+</p>
