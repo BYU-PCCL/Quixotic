@@ -229,9 +229,19 @@ def DrawMiniIsovistForPath(path, screen, goal, iso_radius = 55,
 
 def main():
 	ForceA = False
-	ForceC = False
-	UAVLoc2 = True
 	ForceB = False
+	ForceC = False
+
+        c = np.random.choice( 3 )
+        if c == 0: ForceA = True
+        if c == 1: ForceB = True
+        if c == 2: ForceC = True
+
+#	UAVLoc2 = True
+        if np.random.choice( 2 ) == 0:
+                UAVLoc2 = True
+        else:
+                UAVLoc2 = False
 
 	if len(sys.argv) > 1 and sys.argv[1] == '1':
 		UAVLoc2 = False
@@ -341,14 +351,14 @@ def main():
 			pygame.draw.line(screen, (0, 0, 0), segment[0], segment[1] ,2)
 
 	# Get re-routed path
-	if isIntruderFound:
-		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(isovist_block, original_polygons))
-		#X1, Y1, X2, Y2 = polygons_to_segments(original_polygons)
-		seen_rrt = np.atleast_2d( [(seen_loc[0]/500.0 ),(seen_loc[1]/500.0)] )
-		path = run_rrt( seen_rrt, end, X1, Y1, X2, Y2)
-		rerouted_path = GetReadablePath(path, screen)
-
-		DrawMiniIsovistForPath(rerouted_path, screen, end_paint, iso_radius= intruder_iso_radius, reroute_color=(0, 255, 0))
+#	if isIntruderFound:
+#		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(isovist_block, original_polygons))
+#		#X1, Y1, X2, Y2 = polygons_to_segments(original_polygons)
+#		seen_rrt = np.atleast_2d( [(seen_loc[0]/500.0 ),(seen_loc[1]/500.0)] )
+#		path = run_rrt( seen_rrt, end, X1, Y1, X2, Y2)
+#		rerouted_path = GetReadablePath(path, screen)
+#
+#		DrawMiniIsovistForPath(rerouted_path, screen, end_paint, iso_radius= intruder_iso_radius, reroute_color=(0, 255, 0))
 
 	if seen_loc != None:
 		pygame.draw.circle(screen, (255,255,0), seen_loc, 5)
@@ -363,7 +373,7 @@ def main():
 	pygame.draw.circle(screen, (255,255,0), [10,100], 5)
 	pygame.draw.circle(screen, (100,45,134), [10,130], 5)
 
-	myfont = pygame.font.SysFont("comicsansms", 20)
+	myfont = pygame.font.SysFont("comicsansms", 15)
 
 	# render text
 	label = myfont.render("UAV", 2, (0,0,0))
@@ -382,7 +392,7 @@ def main():
 	label = myfont.render("UAV detected Intruder = " + str(isIntruderFound), 2, (0,0,0))
 	screen.blit(label, (232, 440))
 
-	pfont = pygame.font.SysFont("comicsansms", 40)
+	pfont = pygame.font.SysFont("comicsansms", 30)
 	label = pfont.render("A", 3, (150,150,150))
 	screen.blit(label, (90, 278))
 	label = pfont.render("B", 3, (150,150,150))
@@ -390,12 +400,23 @@ def main():
 	label = pfont.render("C", 3, (150,150,150))
 	screen.blit(label, (395, 278))
 
-	while True:
-		Update()
-		pygame.time.delay(10)
+        Update()
+
+        return [ isUAVFound, isIntruderFound, ForceA, ForceB, ForceC, UAVLoc2 ]
+
+#	while True:
+#		Update()
+#		pygame.time.delay(10)
 
 		                    
 
 if __name__ == '__main__':
-    main()
+        results = []
+        for i in range( 100 ):
+                retval = main()
+                results.append( retval )
 
+        mat = np.vstack( results )
+
+        # this is the probability of detection given ForceC == True
+        float( np.sum( mat[ mat[:,4 ],1] ) ) / float( np.sum(mat[:,4]) )
