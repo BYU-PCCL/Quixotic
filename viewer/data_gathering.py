@@ -342,12 +342,11 @@ def main():
 
 	# Get re-routed path
 	if isIntruderFound:
-
 		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(isovist_block, original_polygons))
+		#X1, Y1, X2, Y2 = polygons_to_segments(original_polygons)
 		seen_rrt = np.atleast_2d( [(seen_loc[0]/500.0 ),(seen_loc[1]/500.0)] )
 		path = run_rrt( seen_rrt, end, X1, Y1, X2, Y2)
 		rerouted_path = GetReadablePath(path, screen)
-		print rerouted_path
 
 		DrawMiniIsovistForPath(rerouted_path, screen, end_paint, iso_radius= intruder_iso_radius, reroute_color=(0, 255, 0))
 
