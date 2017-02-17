@@ -56,7 +56,7 @@ class Isovist:
         for point in RRTPath:
             isFound = self.FindIntruderAtPoint(point, intersections)
             if isFound:
-                return True
+                return True, intersections
 
         for i in xrange(1,len(RRTPath)):
             segment = (RRTPath[i-1], RRTPath[i])
@@ -65,15 +65,15 @@ class Isovist:
             	isovist_segment = (intersections[j-1], intersections[j])
             	intersect, param = self.GetIntersection(segment, isovist_segment)
             	if intersect != None:
-            		return True
+            		return True, intersections
             #Check the losing of the polygon segment
             
             isovist_segment = (intersections[0], intersections[-1])
             intersect, param = self.GetIntersection(segment, isovist_segment)
             if intersect != None:
-            	return True
+            	return True, intersections
 
-        return False
+        return False, intersections
 
 
     def FindIntruderAtPoint(self, pos, intersections):

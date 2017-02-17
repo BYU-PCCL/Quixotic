@@ -24,7 +24,7 @@ def InitScreen(xdim, ydim):
 	size = (xdim, ydim)
 	screen = pygame.display.set_mode(size)
 
-	pygame.display.set_caption("Isovist")
+	pygame.display.set_caption("Quixotic")
 	clock = pygame.time.Clock()
 
 	return screen, clock
@@ -40,7 +40,7 @@ def Update():
 		if e.type == QUIT or (e.type == KEYUP and e.key == K_ESCAPE):
 			sys.exit("Exiting")
 		if e.type == MOUSEBUTTONDOWN:
-		    print('mouse down', pygame.mouse.get_pos())
+		    print pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1],
 		    return pygame.mouse.get_pos()
 
 def load_polygons_here( fn="./paths.txt" ):
@@ -53,7 +53,7 @@ def load_polygons_here( fn="./paths.txt" ):
         bdata.append( tmp )
     return bdata
 
-def load_polygons( fn="./paths.txt" ):
+def load_polygons( fn="./info_gathering_paths.txt" ):
 	polygonSegments = []
 	for line in open( fn ):
 		line = line.strip('\n')
@@ -65,8 +65,8 @@ def load_polygons( fn="./paths.txt" ):
 
 		for pair in toList:
 			#pair[1] = 1.0 - pair[1]
-			pair[0] = int (pair[0] *500)
-			pair[1] = int (pair[1] *500)
+			pair[0] = int (pair[0] *1000)
+			pair[1] = int (pair[1] *1000)
 
 		#toList = [toList[i:i+2] for i in range(0, len(toList), 2)]
 		#toList[-1].insert(0, toList[0][0])
@@ -80,12 +80,12 @@ def load_polygons( fn="./paths.txt" ):
 
 
 	'''border'''
-	polygonSegments.append([ 
-		[ (0,0),(1000,0) ], 
-		[ (1000,0),(1000,1000) ],
-		[ (1000,1000), (0,1000)],
-		[ (0,1000), (0,0) ]
-		])
+	# polygonSegments.append([ 
+	# 	[ (0,0),(1000,0) ], 
+	# 	[ (1000,0),(1000,1000) ],
+	# 	[ (1000,1000), (0,1000)],
+	# 	[ (0,1000), (0,0) ]
+	# 	])
         #print "toList:", toList
 	# for p in polygonSegments:
 	# 	print "\n", p
@@ -130,25 +130,25 @@ def main():
 
 
 	#### RRT STUFF
-	start_paint = (int(0.1 *500),int(0.1 *500))
-	end_paint = (int(0.9*500), int(0.9 *500))
+	# start_paint = (int(0.1 *500),int(0.1 *500))
+	# end_paint = (int(0.9*500), int(0.9 *500))
 
-	start = np.atleast_2d( [(0.1 ) ,(0.1 )] )
-	end = np.atleast_2d( [(0.9 ),(0.9 )] )
-	X1, Y1, X2, Y2 = polygons_to_segments(load_polygons_here())
+	# start = np.atleast_2d( [(0.1 ) ,(0.1 )] )
+	# end = np.atleast_2d( [(0.9 ),(0.9 )] )
+	# X1, Y1, X2, Y2 = polygons_to_segments(load_polygons_here())
 
 	# Draw segments
 	for polygon in polygonSegments:
 		for segment in polygon:
-			pygame.draw.line(screen, (225, 225, 225), segment[0], segment[1] ,1)
+			pygame.draw.line(screen, (0, 0, 0), segment[0], segment[1] ,2)
 
 
 	Update()
 
 	isovist = iso.Isovist(polygonSegments)
 	#(313, 115)
-	agentx = 313
-	agenty = 215
+	agentx = 262
+	agenty = 214
 	UAVLocation = (agentx,agenty)
 	mouseClick = None
 
@@ -169,7 +169,7 @@ def main():
 		# Draw segments ( map )
 		for polygon in polygonSegments:
 			for segment in polygon:
-				pygame.draw.line(screen, (225, 225, 225), segment[0], segment[1],1)
+				pygame.draw.line(screen, (0, 0, 0), segment[0], segment[1],2)
 
 
 		mouse = pygame.mouse.get_pos()
@@ -190,23 +190,28 @@ def main():
 		#pygame.draw.circle(screen, (255,255,255), start_paint, 15)
 		#pygame.draw.circle(screen, (255,255,255), end_paint, 15)
 
-		pygame.draw.circle(screen, (0,255,0), start_paint, 10)
-		pygame.draw.circle(screen, (255,0,0), end_paint, 10)
+		# pygame.draw.circle(screen, (0,255,0), start_paint, 10)
+		# pygame.draw.circle(screen, (255,0,0), end_paint, 10)
 		
-		UAVForwardVector = direction
+		#UAVForwardVector = direction
+		UAVForwardVector = (2, 121)
+		#print UAVForwardVector
 
-		isIntruderFound = isovist.IsIntruderSeen([mouse], UAVLocation, UAVForwardVector, UAVFieldOfVision = 45)
-		
+		#isIntruderFound, intersections = isovist.IsIntruderSeen([mouse], UAVLocation, UAVForwardVector, UAVFieldOfVision = 45)
+		#print intersections
+		isIntruderFound = False
+		intersections = [(262, 214), (236.0, 288), (236.0, 301),
+		 (236.0, 305.0), (286.0, 305.0), 
+		 (286.0, 301), (286.0, 276)]
 		intruderColor = (255,0,0)
 		if isIntruderFound:
 			intruderColor = (0,255,0)
 
 		# Draw Polygon for intersections (isovist)
 		isovist_surface = pygame.Surface((xdim,ydim)) 
-		isovist_surface.set_alpha(10)
+		isovist_surface.set_alpha(80)
 
 		# JUST for drawing the isovist
-		intersections = isovist.GetIsovistIntersections(UAVLocation, UAVForwardVector)
 		if intersections != []:
 			pygame.draw.polygon(isovist_surface, intruderColor, intersections)
 			screen.blit(isovist_surface, isovist_surface.get_rect())
@@ -224,4 +229,4 @@ def main():
 if __name__ == '__main__':
     main()
 
-
+'''[(262, 214), (236.0, 288), (236.0, 301), (236.0, 305.0), (221, 360.0), (298, 360.0), (286.0, 305.0), (286.0, 301), (286.0, 276)]'''
