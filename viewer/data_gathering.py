@@ -195,7 +195,8 @@ def GetReadablePath(path, screen):
 		readable_path.append(s_point)
 	return readable_path
 
-def DrawMiniIsovistForPath(path, screen, goal, iso_radius = 55, intersection = None, reroute_color=None):
+def DrawMiniIsovistForPath(path, screen, goal, iso_radius = 55, 
+							intersection = None, reroute_color=None, UAVSawInt = False):
 	if intersection != None:
 		pygame.draw.circle(screen, (0,255,255), intersection, iso_radius)
 	# else:
@@ -204,7 +205,9 @@ def DrawMiniIsovistForPath(path, screen, goal, iso_radius = 55, intersection = N
 	# 		pygame.draw.circle(screen, (0,255,255), s_point, size)
 	caught_color = (255,0,0)
 	plan_color = (0,0,255)
-	color_in_use = caught_color
+	color_in_use = plan_color
+	if UAVSawInt:
+		color_in_use = caught_color
 	e_point = None
 	for i in xrange(1, len(path)):
 		s_point = path[i-1]
@@ -225,9 +228,22 @@ def DrawMiniIsovistForPath(path, screen, goal, iso_radius = 55, intersection = N
 '''
 
 def main():
+	ForceA = False
+	ForceC = False
+	UAVLoc2 = True
+	ForceB = False
 
-	
+	if len(sys.argv) > 1 and sys.argv[1] == '1':
+		UAVLoc2 = False
+	if len(sys.argv) > 1 and sys.argv[1] == '2':
+	 	UAVLoc2 = True
 
+	if len(sys.argv) > 2 and sys.argv[2] == 'a':
+		ForceA = True
+	if len(sys.argv) > 2 and sys.argv[2] == 'c':
+	 	ForceC = True
+	if len(sys.argv) > 2 and sys.argv[2] == 'b':
+		ForceB = True
 	'''
 	xdim and ydim of the pygame screen 
 	'''
@@ -238,8 +254,6 @@ def main():
 	background = pygame.transform.scale(background, (xdim, ydim))
 	backgroundRect = background.get_rect()
 	intruder_iso_radius = 70
-
-	
 
 	array = np.zeros([xdim, ydim])
 	screen, clock = InitScreen(xdim, ydim)
@@ -253,10 +267,6 @@ def main():
 	s.fill((255,255,255))           	# this fills the entire surface
 	screen.blit(s, (0,0))
 
-	#screen.blit(background, backgroundRect)
-
-	#101 455 336 47
-	#### RRT STUFF
 	start_paint = (int(101),int(455))
 	end_paint = (int(336), int(47))
 
@@ -265,15 +275,39 @@ def main():
 	original_polygons = load_polygons_here()
 	X1, Y1, X2, Y2 = polygons_to_segments(original_polygons)
 
+	if ForceA:
+		block = "140 302 141 363 155 332"
+		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(block, original_polygons))
+	# if ForceB:
+	# 	block = "6 281 163 284 163 305 52 316 57 483 155 475 149 369 294 370 291 286 327 285 347 376 248 489 14 494 11 347"
+	# 	X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(block, original_polygons))
+	if ForceB:
+		blockC= "287 297 289 372 311 329"
+		blockA = "139 306 59 300 104 280"
+		temp = add_isovist_obstacle(blockA, original_polygons)
+		temp = add_isovist_obstacle(blockC, temp)
+		X1, Y1, X2, Y2 = polygons_to_segments(temp)
+	if ForceC:
+		block = "65 307 304 305 172 255"
+		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(block, original_polygons))
+
+
 	Update()
 
 	isovist = iso.Isovist(polygonSegments)
 	agentx = 262
 	agenty = 214
+	if UAVLoc2:
+		agentx = 406
+		agenty = 211
 	UAVLocation = (agentx,agenty)
 	mouseClick = None
 	UAVForwardVector = (2, 121) # looking south
 	intersections = [(262, 214), (236.0, 260), (286.0, 260)]
+	isovist_block= "262 214 236 260 286 260"
+	if UAVLoc2:
+		intersections = [(406, 211), (384, 254), (430, 254)]
+		isovist_block = "406 211 384 254 430 254"
 
 	# Get intended path
 	path = run_rrt( start, end, X1, Y1, X2, Y2)
@@ -281,7 +315,7 @@ def main():
 	isIntruderFound, seen_loc = IsIntruderSeenByUAV(intended_path, intersections)
 	isUAVFound, u_seen_loc= IsUAVSeenByIntruder(UAVLocation, intruder_iso_radius, intended_path)
 
-	DrawMiniIsovistForPath(intended_path, screen, end_paint, iso_radius= intruder_iso_radius, intersection = u_seen_loc)
+	DrawMiniIsovistForPath(intended_path, screen, end_paint, iso_radius= intruder_iso_radius, intersection = u_seen_loc, UAVSawInt = isIntruderFound)
 
 	intruderColor = (255,0,0)
 	if not isIntruderFound:
@@ -306,14 +340,14 @@ def main():
 		for segment in polygon:
 			pygame.draw.line(screen, (0, 0, 0), segment[0], segment[1] ,2)
 
-	if isUAVFound:
-		isovist = "262 214 236 260 286 260"
+	# Get re-routed path
+	if isIntruderFound:
 
-		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(isovist, original_polygons))
-		seen_rrt = np.atleast_2d( [(u_seen_loc[0]/500.0 ),(u_seen_loc[1]/500.0)] )
-		start = np.atleast_2d( [(101 /500.0 ) ,(455/500.0 )] )
+		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(isovist_block, original_polygons))
+		seen_rrt = np.atleast_2d( [(seen_loc[0]/500.0 ),(seen_loc[1]/500.0)] )
 		path = run_rrt( seen_rrt, end, X1, Y1, X2, Y2)
 		rerouted_path = GetReadablePath(path, screen)
+		print rerouted_path
 
 		DrawMiniIsovistForPath(rerouted_path, screen, end_paint, iso_radius= intruder_iso_radius, reroute_color=(0, 255, 0))
 
@@ -343,6 +377,19 @@ def main():
 	screen.blit(label, (30, 93))
 	label = myfont.render("detection of UAV by intruder", 2, (0,0,0))
 	screen.blit(label, (30, 123))
+
+	label = myfont.render("Intruder detecter UAV = " + str(isUAVFound), 2, (0,0,0))
+	screen.blit(label, (232, 400))
+	label = myfont.render("UAV detected Intruder = " + str(isIntruderFound), 2, (0,0,0))
+	screen.blit(label, (232, 440))
+
+	pfont = pygame.font.SysFont("comicsansms", 40)
+	label = pfont.render("A", 3, (150,150,150))
+	screen.blit(label, (90, 278))
+	label = pfont.render("B", 3, (150,150,150))
+	screen.blit(label, (250, 278))
+	label = pfont.render("C", 3, (150,150,150))
+	screen.blit(label, (395, 278))
 
 	while True:
 		Update()
