@@ -92,7 +92,18 @@ def load_polygons( fn="./paths.txt" ):
 	# 	print "\n", p
 	return polygonSegments
 
+def GetReadablePath(path):
+	readable_path = []
+	for i in xrange(1, len(path)):
+		s_point = path[i-1]
+		s_point = (int(s_point[0]*500), int(s_point[1]*500))
 
+		e_point = path[i]
+		e_point = (int(e_point[0]*500), int(e_point[1]*500))
+		pygame.draw.line(screen, (225, 225, 0), s_point, e_point, 1)
+
+		readable_path.append(s_point)
+	return readable_path
 '''
 	main function
 
@@ -137,16 +148,6 @@ def main():
 	start = np.atleast_2d( [(0.1 ) ,(0.1 )] )
 	end = np.atleast_2d( [(0.9 ),(0.9 )] )
 	X1, Y1, X2, Y2 = polygons_to_segments(load_polygons_here())
-	#print X1, Y1, X2, Y2
-	# path = run_rrt( start, end, X1, Y1, X2, Y2)
-	# print path
-	# print "HERE"
-	# for point in path:
-	# 	print "POINT", point
-	# 	point = (int(point[0]*500), int(point[1]*500))
-	# 	pygame.draw.circle(screen, (255,100,255), point, 5)
-
-	####
 
 	# Draw segments
 	for polygon in polygonSegments:
@@ -170,6 +171,8 @@ def main():
 	UAVLocation = (agentx,agenty)
 	mouseClick = None
 
+	# intended path
+	path = run_rrt( start, end, X1, Y1, X2, Y2)
 	
 
 	while True:
@@ -198,11 +201,6 @@ def main():
 		#print UAVLocation
 		
 		path = run_rrt( start, end, X1, Y1, X2, Y2)
-		# print path
-		# # print "HERE"
-		# for point in path:
-		# 	point = (int(point[0]*500), int(point[1]*500))
-		# 	pygame.draw.circle(screen, (255,100,255), point, 5)
 		readable_path = []
 		for i in xrange(1, len(path)):
 			s_point = path[i-1]
@@ -218,14 +216,6 @@ def main():
 		dirx = mouse[0] - UAVLocation[0]
 		diry = mouse[1] - UAVLocation[1]
 		direction = (dirx, diry)
-
-		#Draw hard coded RRT Path
-		# pygame.draw.line(screen, (0, 0, 255), RRTPath[0], RRTPath[1],2)
-		# for point in RRTPath:
-		# 	pygame.draw.circle(screen, (255,100,255), point, 5)
-
-		#pygame.draw.circle(screen, (255,255,255), start_paint, 15)
-		#pygame.draw.circle(screen, (255,255,255), end_paint, 15)
 
 		pygame.draw.circle(screen, (0,255,0), start_paint, 10)
 		pygame.draw.circle(screen, (255,0,0), end_paint, 10)

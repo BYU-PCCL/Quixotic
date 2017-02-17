@@ -43,18 +43,24 @@ def Update():
 		    print pygame.mouse.get_pos()[0], pygame.mouse.get_pos()[1],
 		    return pygame.mouse.get_pos()
 
-def load_polygons_here( fn="./info_gathering_paths.txt" ):
+def load_polygons_here( fn="./info_gathering_paths.txt"):
     bdata = []
-    count = 1
     for x in open( fn ):
-    	if count != 0:
 	        tmp = np.fromstring( x, dtype=float, sep=' ' )
 	        tmp = np.reshape( tmp/500, (-1,2) )
 	        tmp = np.vstack(( np.mean(tmp, axis=0, keepdims=True), tmp, tmp[0,:] ))
-	        #tmp[:,1] = 1.0 - tmp[:,1]  # flip on the y axis
 	        bdata.append( tmp )
-       	count += 1
+    
+
     return bdata
+
+def add_isovist_obstacle(isovist, original_polygons):
+	copy = original_polygons
+	tmp = np.fromstring( isovist, dtype=float, sep=' ' )
+	tmp = np.reshape( tmp/500, (-1,2) )
+	tmp = np.vstack(( np.mean(tmp, axis=0, keepdims=True), tmp, tmp[0,:] ))
+	copy.append( tmp )
+	return copy
 
 def load_polygons( fn="./info_gathering_paths.txt" ):
 	polygonSegments = []
@@ -96,10 +102,11 @@ def load_polygons( fn="./info_gathering_paths.txt" ):
 
 def IsIntruderSeen(RRTPath, intersections):
 
-        for point in RRTPath:
-            isFound = FindIntruderAtPoint(point, intersections)
-            if isFound:
-                return True
+        # for point in RRTPath:
+        #     isFound, loc = FindIntruderAtPoint(point, intersections)
+        #     print loc
+        #     if isFound:
+        #         return True, loc
 
         for i in xrange(1,len(RRTPath)):
             segment = (RRTPath[i-1], RRTPath[i])
@@ -107,16 +114,17 @@ def IsIntruderSeen(RRTPath, intersections):
             for j in xrange(1,len(intersections)):
             	isovist_segment = (intersections[j-1], intersections[j])
             	intersect, param = GetIntersection(segment, isovist_segment)
+            	
             	if intersect != None:
-            		return True
+            		return True, RRTPath[i-1]
             #Check the losing of the polygon segment
             
             isovist_segment = (intersections[0], intersections[-1])
             intersect, param = GetIntersection(segment, isovist_segment)
             if intersect != None:
-            	return True
+            	return True, intersections[0]
 
-        return False
+        return False, None
 
 def FindIntruderAtPoint(pos, intersections):
         if intersections == []:
@@ -130,8 +138,8 @@ def FindIntruderAtPoint(pos, intersections):
                     if (pos[0] < pts[i][0] + float(pos[1] - pts[i][1]) / (pts[i+1][1] - pts[i][1]) * (pts[i+1][0] - pts[i][0])):
                             cn += 1
         if bool(cn % 2)==1:
-            return True
-        return False
+            return True, pts[-1]
+        return False, None
 
 def GetIntersection(ray, segment):
         # RAY in parametric: Point + Direction * T1
@@ -176,6 +184,43 @@ def GetIntersection(ray, segment):
 
         return None, None
 
+
+def GetReadablePath(path, screen):
+	readable_path = []
+	for i in xrange(1, len(path)):
+		s_point = path[i-1]
+		s_point = (int(s_point[0]*500), int(s_point[1]*500))
+
+		e_point = path[i]
+		e_point = (int(e_point[0]*500), int(e_point[1]*500))
+		
+		readable_path.append(s_point)
+	return readable_path
+
+def DrawMiniIsovistForPath(path, screen, goal, intersection = None, reroute_color=None):
+	size = 55
+	if intersection != None:
+		pygame.draw.circle(screen, (0,255,255), intersection, size)
+	# else:
+	# 	for i in xrange(1, len(path), 5):
+	# 		s_point = path[i-1]
+	# 		pygame.draw.circle(screen, (0,255,255), s_point, size)
+	caught_color = (255,0,0)
+	plan_color = (0,0,255)
+	color_in_use = caught_color
+	for i in xrange(1, len(path)):
+		s_point = path[i-1]
+		e_point = path[i]
+
+		if s_point == intersection:
+			color_in_use = plan_color
+		if reroute_color != None:
+			color_in_use = reroute_color 
+		pygame.draw.line(screen, color_in_use, s_point, e_point, 2)
+		
+	pygame.draw.line(screen, color_in_use, e_point, goal, 2)
+		
+
 '''
 	main function
 
@@ -219,100 +264,69 @@ def main():
 
 	start = np.atleast_2d( [(101 /500.0 ) ,(455/500.0 )] ) #(101, 455)
 	end = np.atleast_2d( [(336/500.0 ),(47/500.0)] ) #(336, 47)
-	X1, Y1, X2, Y2 = polygons_to_segments(load_polygons_here())
+	original_polygons = load_polygons_here()
+	X1, Y1, X2, Y2 = polygons_to_segments(original_polygons)
+
+	
+
+	Update()
+
+	isovist = iso.Isovist(polygonSegments)
+	agentx = 262
+	agenty = 214
+	UAVLocation = (agentx,agenty)
+	mouseClick = None
+	UAVForwardVector = (2, 121) # looking south
+	intersections = [(262, 214), (236.0, 260), (286.0, 260)]
+
+	# Get intended path
+	path = run_rrt( start, end, X1, Y1, X2, Y2)
+	intended_path = GetReadablePath(path, screen)
+	isIntruderFound, seen_loc = IsIntruderSeen(intended_path, intersections)
+
+	DrawMiniIsovistForPath(intended_path, screen, end_paint, intersection = seen_loc)
+
+	
+
+
+	intruderColor = (255,0,0)
+	if not isIntruderFound:
+		intruderColor = (0,255,0)
+
+	# Draw Polygon for intersections (isovist)
+	isovist_surface = pygame.Surface((xdim,ydim)) 
+	isovist_surface.fill((255,255,255))
+	isovist_surface.set_alpha(100)
+
+	# JUST for drawing the isovist
+	pygame.draw.polygon(isovist_surface, intruderColor, intersections)
+	screen.blit(isovist_surface, isovist_surface.get_rect())
+
+	pygame.draw.circle(screen, (100,100,100), UAVLocation, 5)
+
+	pygame.draw.circle(screen, (0,255,0), start_paint, 7)
+	pygame.draw.circle(screen, (255,0,0), end_paint, 7)
+	if seen_loc != None:
+		pygame.draw.circle(screen, (255,255,0), seen_loc, 7)
 
 	# Draw segments
 	for polygon in polygonSegments:
 		for segment in polygon:
 			pygame.draw.line(screen, (0, 0, 0), segment[0], segment[1] ,2)
 
+	if isIntruderFound:
+		isovist = "262 214 236 260 286 260"
 
-	Update()
+		X1, Y1, X2, Y2 = polygons_to_segments(add_isovist_obstacle(isovist, original_polygons))
+		seen_rrt = np.atleast_2d( [(seen_loc[0]/500.0 ),(seen_loc[1]/500.0)] )
+		start = np.atleast_2d( [(101 /500.0 ) ,(455/500.0 )] )
+		path = run_rrt( seen_rrt, end, X1, Y1, X2, Y2)
+		rerouted_path = GetReadablePath(path, screen)
 
-	isovist = iso.Isovist(polygonSegments)
-	#(313, 115)
-	agentx = 262
-	agenty = 214
-	UAVLocation = (agentx,agenty)
-	mouseClick = None
-
-	
+		DrawMiniIsovistForPath(rerouted_path, screen, end_paint, reroute_color=(0, 255, 0))
 
 	while True:
-		if mouseClick != None:
-			UAVLocation = mouseClick
-
-		
-
-		# Clear canvas
-		screen.fill((255,255,255))
-		s = pygame.Surface((xdim,ydim))  # the size of your rect
-		s.set_alpha(0)                   # alpha level
-		s.fill((255,255,255))            # this fills the entire surface
-		screen.blit(s, (0,0))
-		# Draw segments ( map )
-		for polygon in polygonSegments:
-			for segment in polygon:
-				pygame.draw.line(screen, (0, 0, 0), segment[0], segment[1],2)
-
-
-		mouse = pygame.mouse.get_pos()
-
-		
-		
-
-		# getting directions
-		dirx = mouse[0] - UAVLocation[0]
-		diry = mouse[1] - UAVLocation[1]
-		direction = (dirx, diry)
-
-		pygame.draw.circle(screen, (0,255,0), start_paint, 7)
-		pygame.draw.circle(screen, (255,0,0), end_paint, 7)
-		
-		#UAVForwardVector = direction
-		UAVForwardVector = (2, 121)
-
-		path = run_rrt( start, end, X1, Y1, X2, Y2)
-		readable_path = []
-		for i in xrange(1, len(path)):
-			s_point = path[i-1]
-			s_point = (int(s_point[0]*500), int(s_point[1]*500))
-
-			e_point = path[i]
-			e_point = (int(e_point[0]*500), int(e_point[1]*500))
-			pygame.draw.line(screen, (0, 0, 255), s_point, e_point, 2)
-
-			readable_path.append(s_point)
-		pygame.draw.line(screen, (0, 0, 255), e_point, end_paint, 2)
-
-		#isIntruderFound, intersections = isovist.IsIntruderSeen([mouse], UAVLocation, UAVForwardVector, UAVFieldOfVision = 45)
-		
-		intersections = [(262, 214), (236.0, 288), (236.0, 301),
-		 (236.0, 305.0), (286.0, 305.0), 
-		 (286.0, 301), (286.0, 276)]
-
-	 	isIntruderFound = IsIntruderSeen(readable_path, intersections)
-	 	#isIntruderFound = False
-		intruderColor = (255,0,0)
-		if isIntruderFound:
-			intruderColor = (0,255,0)
-
-		# Draw Polygon for intersections (isovist)
-		isovist_surface = pygame.Surface((xdim,ydim)) 
-		isovist_surface.set_alpha(80)
-
-		# JUST for drawing the isovist
-		if intersections != []:
-			pygame.draw.polygon(isovist_surface, intruderColor, intersections)
-			screen.blit(isovist_surface, isovist_surface.get_rect())
-
-		pygame.draw.circle(screen, (100,100,100), UAVLocation, 5)
-		#pygame.draw.circle(screen, (100,100,100), mouse, 5)
-
-		#isox,isoy = UpdateMovement(isox,isoy)
-		#mouseClick = Update()
 		Update()
-			
 		pygame.time.delay(10)
 
 		                    
@@ -320,4 +334,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-'''[(262, 214), (236.0, 288), (236.0, 301), (236.0, 305.0), (221, 360.0), (298, 360.0), (286.0, 305.0), (286.0, 301), (286.0, 276)]'''
