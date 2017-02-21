@@ -53,13 +53,14 @@ class Isovist:
         intersections = self.GetIsovistIntersections(UAVLocation, UAVForwardVector)
 
 
-        for point in RRTPath:
-            isFound = self.FindIntruderAtPoint(point, intersections)
-            if isFound:
-                return True, intersections
-
-        for i in xrange(1,len(RRTPath)):
-            segment = (RRTPath[i-1], RRTPath[i])
+        # for point in RRTPath:
+        #     #print point
+        #     isFound = self.FindIntruderAtPoint(point, intersections)
+        #     if isFound:
+        #         return True, intersections
+        skip = 8
+        for i in xrange(skip-1,len(RRTPath), skip):
+            segment = (RRTPath[i-skip+1], RRTPath[i])
 
             for j in xrange(1,len(intersections)):
             	isovist_segment = (intersections[j-1], intersections[j])
