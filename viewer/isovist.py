@@ -34,14 +34,49 @@ EXAMPLE:
 
 class Isovist:
 
-    def __init__(self, polygon_map):
+    def __init__(self, polygon_map, load=False):
+        if load:
+            polygon_map = self.load_polygons()
         self.polygon_map = polygon_map
         self.uniquePoints = self.GetUniquePoints()
 
         #BY DEFAULT field of vision is set to 40 degrees
         self.UAVFieldOfVision = 40
         self.fieldOfVision = math.radians(self.UAVFieldOfVision/2.0)
+        self.full = False
 
+    def load_polygons(self, fn="./paths.txt" ):
+        polygonSegments = []
+        for line in open( fn ):
+            line = line.strip('\n')
+            toList = line.split(' ')
+            toList = [(float(x)/1000) for x in toList]
+            
+            it = iter(toList)
+            toList = [toList[i:i+2] for i in range(0, len(toList), 2)]
+
+            for pair in toList:
+                pair[0] = int (pair[0] *500)
+                pair[1] = int (pair[1] *500)
+
+            temp = []
+            for i in xrange(1,len(toList)):
+                pair = (toList[i-1], toList[i])
+                temp.append(pair)
+            temp.append((toList[0],toList[-1]))
+            
+            polygonSegments.append(temp)
+
+        dim = 500
+
+        '''border'''
+        polygonSegments.append([ 
+            [ (-5,-5),(505,-5) ], 
+            [ (505,-5),(505,505) ],
+            [ (505,505), (-5,505)],
+            [ (-5,505), (-5,-5) ]
+            ])
+        return polygonSegments
 
     def IsIntruderSeen(self, RRTPath, UAVLocation, UAVForwardVector, UAVFieldOfVision = 40):
     	# Setting customized UAV Field of vision
@@ -92,7 +127,8 @@ class Isovist:
             return True
         return False
 
-    def GetIsovistIntersections(self, agentLocation, direction, UAVFieldOfVision = 40):
+    def GetIsovistIntersections(self, agentLocation, direction, UAVFieldOfVision = 40, full_iso=False):
+        self.full = full_iso
         if direction == (0,0):
             return []
         # if direction[0] <= 1:
@@ -132,7 +168,8 @@ class Isovist:
                 intersections.append(closestIntersect)
 
         intersections = self.SortIntoPolygonPoints(intersections)
-        intersections.insert(0, agentLocation)
+        if not full_iso:
+            intersections.insert(0, agentLocation)
         return intersections
 
     def GetUniqueAngles(self, direction):
@@ -144,8 +181,14 @@ class Isovist:
         for point in self.uniquePoints:
             angleBetween = self.GetRelativeAngle(point, direction)
 
-            if math.fabs(angleBetween) <= self.fieldOfVision:
-                #find world angle
+            if not self.full:
+                if math.fabs(angleBetween) <= self.fieldOfVision:
+                    #find world angle
+                    angle = math.atan2(point[1]-self.agentLocation[1], point[0]-self.agentLocation[0])
+                    uniqueAngles.append(angle)
+                    uniqueAngles.append(angle-0.01)
+                    uniqueAngles.append(angle+0.01)
+            elif self.full:
                 angle = math.atan2(point[1]-self.agentLocation[1], point[0]-self.agentLocation[0])
                 uniqueAngles.append(angle)
                 uniqueAngles.append(angle-0.01)
@@ -178,6 +221,31 @@ class Isovist:
         return points
 
     def Compare(self, a, b):
+        if self.full:
+            a_row = a[0]
+            a_col = a[1]
+
+            b_row = b[0]
+            b_col = b[1]
+
+            a_vrow = a_row - self.agentLocation[0]
+            a_vcol = a_col - self.agentLocation[1]
+
+            b_vrow = b_row - self.agentLocation[0]
+            b_vcol = b_col - self.agentLocation[1]
+
+            a_ang = math.degrees(math.atan2(a_vrow, a_vcol))
+            b_ang = math.degrees(math.atan2(b_vrow, b_vcol))
+
+            if a_ang < b_ang:
+                return -1
+
+            if a_ang > b_ang:
+                return 1
+
+            return 0 
+
+
         a_ang = self.GetRelativeAngle(a, self.startingFieldOfVision)
         b_ang = self.GetRelativeAngle(b, self.startingFieldOfVision)
 
