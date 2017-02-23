@@ -92,20 +92,10 @@ def load_polygons( fn="./paths.txt" ):
 	# 	print "\n", p
 	return polygonSegments
 
-def GetReadablePath(path):
-	readable_path = []
-	for i in xrange(1, len(path)):
-		s_point = path[i-1]
-		s_point = (int(s_point[0]*500), int(s_point[1]*500))
-		
-		e_point = path[i]
-		e_point = (int(e_point[0]*500), int(e_point[1]*500))
-		pygame.draw.line(screen, (225, 225, 0), s_point, e_point, 1)
-		readable_path.append(s_point)
-	return readable_path
+
 
 def DrawRRT(path, screen, goal, printPoints=False, highlight = None):
-	color_in_use = (0,255,255)
+	color_in_use = (255,255,0)
 	if highlight != None:
 		color_in_use = highlight
 	e_point = None
@@ -141,6 +131,24 @@ def load_data():
 def save_data(data):
     with open("rrt_paths-new.dat", "wb") as f:
         pickle.dump(data, f)
+
+
+def paint_loc(point):
+	return (int(point[0] * 500), int(point[1] * 500))
+
+def rrt_loc(point):
+	loc = np.atleast_2d( [( point[0]/500.0) ,( point[1]/500.0 )] )
+	return  loc
+
+def go_south(point, amt = 1):
+	return (point[0], point[1]+ amt)
+
+def dist(one, two):
+	xs = one[0] - two[0]
+	ys = one[1] - two[1]
+	return math.sqrt(xs**2 + ys**2)
+def direction (now, before):
+	return (now[0]-before[0], now[1] - before[1])
 '''
 	main function
 
@@ -164,6 +172,10 @@ def main():
 	screen, clock = InitScreen(xdim, ydim)
 	polygonSegments = load_polygons()
 
+	# isovist stuff
+ 	isovist = iso.Isovist( polygonSegments )
+
+
 	# Clear canvas
 	screen.fill((255,255,255))
 
@@ -175,76 +187,130 @@ def main():
 	screen.blit(background, backgroundRect)
 
 
-	#### RRT STUFF
-	start_paint = (int(0.1 *500),int(0.1 *500))
-	end_paint = (int(0.9*500), int(0.9 *500))
-
-	start = np.atleast_2d( [(0.1 ) ,(0.1 )] )
-	end = np.atleast_2d( [(0.9 ),(0.9 )] )
 	X1, Y1, X2, Y2 = polygons_to_segments(load_polygons_here())
 
-	# Draw segments
-	for polygon in polygonSegments:
-		for segment in polygon:
-			pygame.draw.line(screen, (225, 225, 225), segment[0], segment[1] ,1)
-
-
-	Update()
-
 	
-	screen.blit(background, backgroundRect)
 	for polygon in polygonSegments:
 		for segment in polygon:
 			pygame.draw.line(screen, (225, 225, 225), segment[0], segment[1],1)
 	
-	numPaths = 30
-	#numPaths = 1
-	inbetweenPoints = [ (0.674, 0.102) ,
-						(0.554, 0.264) ,
-						(0.288, 0.658) ,
-						(0.18, 0.696) ,
-						(0.286, 0.848) ,
-						(0.502, 0.804) ,
-						(0.848, 0.444) ,
-						(0.616, 0.472) ,
-						(0.41, 0.566) ,
-						(0.744, 0.688)]
+	Update()
 
-	cand_uav_locs = [(0.532, 0.28) ,
-				(0.66, 0.472) ,
-				(0.242, 0.484) ,
-				(0.294, 0.666) ,
-				(0.458, 0.752) ,
-				(0.584, 0.64) ,
-				(0.55, 0.1) ,
-				(0.364, 0.194) ,
-				(0.47, 0.466) ,
-				(0.742, 0.682) ,]
+	INTRUDER_SEEN_COUNT = 0 
 
-	for loc in cand_uav_locs:
-		pygame.draw.circle(screen, (255,255,0), (int(loc[0]*500), int(loc[1]*500)), 7)
+	UAV_start = paint_loc( (0.968,0.032)) 
+	UAV_end = paint_loc((0.016, 0.02)) 
 
-	rrt_paths = load_data()	
-	paths = []				
-	for i in xrange(numPaths):
-		# inbetween = np.atleast_2d([inbetweenPoints[i%10]])
-		# path = run_rrt( start, inbetween, X1, Y1, X2, Y2)
-		# path2 = run_rrt( inbetween, end, X1, Y1, X2, Y2)
-		# path.extend(path2)
-		# paths.append(path)
+	K = 0
+	while K <= 0:
 
-		path = rrt_paths[i]
-		if i == 1:
-			DrawRRT(path, screen, end_paint, printPoints = True, highlight=(0,255,0))
-		elif i == 27:
-			DrawRRT(path, screen, end_paint, printPoints = True, highlight=(255,0,0))
-		else:
-			DrawRRT(path, screen, end_paint, printPoints = True)
-		Update()
-	
-		#save_data(paths)
-	pygame.draw.circle(screen, (0,255,0), start_paint, 5)
-	pygame.draw.circle(screen, (255,0,0), end_paint, 5)
+		# SAMPLE INTRUDER
+		IntruderStart = paint_loc((0.06, 0.236))
+		IntruderGoal = paint_loc((.9,.9))
+
+		pygame.draw.circle(screen, (0,255,0), IntruderStart, 5)
+		pygame.draw.circle(screen, (255,0,0), IntruderGoal, 5)
+
+		# GET INTRUDER PATH AND DRAW INTENDED PATH
+		intruder_path = run_rrt( rrt_loc(IntruderStart), rrt_loc(IntruderGoal), X1, Y1, X2, Y2)
+		DrawRRT(intruder_path, screen, IntruderGoal)
+
+		#THINK
+		UAV_path = run_rrt( rrt_loc(UAV_start), rrt_loc(UAV_end), X1, Y1, X2, Y2)
+		DrawRRT(UAV_path, screen, UAV_end, highlight = (0,255,0))
+
+		#STEPS THE INTRUDER TAKES TO GOAL
+		e_point = None
+		intruder_walking_color = (255, 0, 0)
+		UAV_searching_color = (255, 0, 255)
+
+		UAV_current_step = 1
+		UAV_steps = 5
+
+		UAV_curr_loc = UAV_start
+		Intruder_curr_loc = IntruderStart
+		for i in xrange(1, len(intruder_path)+1):
+			#DRAW STEP FOR INTRUDER
+			if i == len(intruder_path): #and e_point != None:
+				pygame.draw.line(screen, intruder_walking_color, paint_loc(intruder_path[-1]), IntruderGoal, 1)
+			else:
+				s = intruder_path[i-1]
+				e = intruder_path[i]
+				pygame.draw.line(screen, intruder_walking_color, paint_loc(s), paint_loc(e), 1)
+
+			#INTRUDER CURRENT LOCATION
+			Intruder_curr_loc = paint_loc(e)
+			if Intruder_curr_loc == None:
+				Intruder_curr_loc = paint_loc(intruder_path[-1])
+			
+
+			
+			
+			#FOR EVERY 1 STEP OF INTRUDER,  N STEPS FOR UAV
+			stepsToGo = UAV_current_step+UAV_steps
+			if len(UAV_path) - UAV_current_step < UAV_steps:
+				stepsToGo = len(UAV_path) + 1
+				
+			for j in xrange(UAV_current_step, stepsToGo):
+				if j == len(UAV_path): #and e_point != None:
+					pygame.draw.line(screen, UAV_searching_color, paint_loc(UAV_path[-1]), UAV_end, 1)
+				else:
+					s = UAV_path[j-1]
+					e = UAV_path[j]
+					pygame.draw.line(screen, UAV_searching_color, paint_loc(s), paint_loc(e), 1)
+					
+					# UAV CURRENT LOCATION
+					UAV_curr_loc = paint_loc(e)
+					if UAV_curr_loc == None:
+						UAV_curr_loc = paint_loc(UAV_path[-1])
+
+					if dist(Intruder_curr_loc, UAV_curr_loc) <= 70:
+						fv = direction(paint_loc(e),paint_loc(s)) 
+						if not(fv[0] == 0 or fv[1] == 0):
+							intersections = isovist.GetIsovistIntersections(UAV_curr_loc, fv)
+							intruder_seen = isovist.FindIntruderAtPoint(Intruder_curr_loc, intersections)
+							if intruder_seen:
+								INTRUDER_SEEN_COUNT += 1
+								print "INTRUDER SEEN!"
+								raw_input()
+
+
+				Update()
+				pygame.time.delay(10)
+			UAV_current_step += UAV_steps
+			if stepsToGo >= len(UAV_path):
+				south = 50
+				#THINK AGAIN!
+				UAV_start = go_south(UAV_start, amt=south)
+				UAV_end = go_south(UAV_end, amt=south)
+				
+				if UAV_start[1] >= 500:
+					UAV_start = paint_loc( (0.968,0.032)) 
+					UAV_end = paint_loc((0.016, 0.02)) 
+
+				temp = UAV_start
+				UAV_start = UAV_end
+				UAV_end = temp
+				
+				UAV_path = run_rrt( rrt_loc(UAV_start), rrt_loc(UAV_end), X1, Y1, X2, Y2)
+				DrawRRT(UAV_path, screen, UAV_end, highlight = (0,255,0))
+				UAV_current_step = 1
+			
+
+			Update()
+			pygame.time.delay(10)
+
+		K += 1
+
+
+	# pygame.draw.circle(screen, (255,255,0), UAVLocation, 7)
+	# isovist_surface = pygame.Surface((xdim,ydim)) 
+	# isovist_surface.set_alpha(50)
+	# intersections = isovist.GetIsovistIntersections(UAVLocation, UAVForwardVector)
+	# if intersections != []:
+	# 	pygame.draw.polygon(isovist_surface, (255,255,0), intersections)
+	# 	screen.blit(isovist_surface, isovist_surface.get_rect())
+
 
 	# index = getPathIndex()
 	# print index
@@ -266,4 +332,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 

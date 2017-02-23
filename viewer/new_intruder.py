@@ -43,7 +43,7 @@ cand_uav_locs = [(0.532, 0.28) ,
 				(0.55, 0.1) ,
 				(0.364, 0.194) ,
 				(0.47, 0.466) ,
-				(0.742, 0.682) ,]
+				(0.742, 0.682) ]
 
 w = [0.08, 0.18, 0.10,  0.10, 0.04,
 	 0.13, 0.08, 0.14, 0.10, 0.05]
@@ -53,7 +53,7 @@ w = [0.08, 0.18, 0.10,  0.10, 0.04,
 #set start and goal locations
 start = np.atleast_2d( [(0.1 ) ,(0.1 )] )
 end = np.atleast_2d( [(0.9 ),(0.9 )] )
-#load given 75 rrt paths
+
 rrt_paths = load_data()
 
 num_paths = len(rrt_paths)
