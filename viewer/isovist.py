@@ -58,7 +58,7 @@ class Isovist:
         #     isFound = self.FindIntruderAtPoint(point, intersections)
         #     if isFound:
         #         return True, intersections
-        skip = 8
+        skip = 20
         for i in xrange(skip-1,len(RRTPath), skip):
             segment = (RRTPath[i-skip+1], RRTPath[i])
 
@@ -95,6 +95,9 @@ class Isovist:
     def GetIsovistIntersections(self, agentLocation, direction, UAVFieldOfVision = 40):
         if direction == (0,0):
             return []
+        # if direction[0] <= 1:
+        #     if direction[1] <= 1:
+        #         direction = (direction[0]*500, direction[1]*500)
     	#Setting customized UAV Field of vision
     	self.UAVFieldOfVision =  UAVFieldOfVision
         self.fieldOfVision = math.radians(self.UAVFieldOfVision/2.0)

@@ -419,4 +419,4 @@ if __name__ == '__main__':
         mat = np.vstack( results )
 
         # this is the probability of detection given ForceC == True
-        float( np.sum( mat[ mat[:,4 ],1] ) ) / float( np.sum(mat[:,4]) )
+        print float( np.sum( mat[ mat[:,4 ],1] ) ) / float( np.sum(mat[:,4]) )
