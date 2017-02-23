@@ -78,7 +78,7 @@ class Experiments():
 		return math.sqrt(xs**2 + ys**2)
 
 	def direction (self, now, before):
-		return (now[0]-before[0], now[1] - before[1]*500)
+		return (now[0]-before[0], now[1] - before[1])
 		#return ((now[0]-before[0])*500, (now[1] - before[1]*500))
 
 	def step_south(self, point, amt = 1):
