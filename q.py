@@ -29,9 +29,14 @@ class Q( object ):
 
         self.always_sample = False
 
+        # register the available elementary random primitives
         self.choice = self.make_erp( choice_erp )
         self.randn = self.make_erp( randn_erp )
         self.flip = self.make_erp( flip_erp )
+        self.rand = self.make_erp( rand_erp )
+        self.beta = self.make_erp( beta_erp )
+
+        self.opt_callback = None
 
 #
 # ------------------------------------------------------
@@ -88,31 +93,6 @@ class Q( object ):
 # ------------------------------------------------------
 #
 
-    def calc_rolled_out_gradient_nobaseline( self, cnt=100 ):
-
-        total_score = 0.0
-
-        # perform cnt rollouts
-        for i in range(cnt):
-            self.run_model()
-            total_score += self.cur_trace_score
-            for k in self.cur_grad_db:
-                for j in self.cur_grad_db[k]:
-                    self.grad_db[ k ][ j ] += self.cur_trace_score * self.cur_grad_db[ k ][ j ]
-
-        # XXX we should have a baseline estimator here!
-
-        # normalize
-        for k in self.cur_grad_db:
-            for j in self.cur_grad_db[k]:
-                    self.grad_db[ k ][ j ] /= cnt
-
-        return total_score / float(cnt)
-
-#
-# ------------------------------------------------------
-#
-
     def calc_rolled_out_gradient( self, cnt=100 ):
 
         np.set_printoptions( precision=2, linewidth=200 )
@@ -132,7 +112,7 @@ class Q( object ):
                 for j in self.cur_grad_db[k]:
                     self.grad_db[ k ][ j ].append( self.cur_grad_db[ k ][ j ] )
 
-        # our baseline is just the mean
+        # our baseline is just the median
         scores = np.atleast_2d( scores )
         total_score = np.sum( scores )
 #        scores = scores - np.mean( scores )
@@ -141,8 +121,21 @@ class Q( object ):
         # normalize
         for k in self.cur_grad_db:
             for j in self.cur_grad_db[k]:
+#                print "%s - %s" % (k,j)
+#                tmp = self.grad_db[ k ][ j ]
+#                print tmp[0].shape
+#                self.grad_db[ k ][ j ] = np.dot( scores, np.vstack( tmp ) ) / cnt
+
                 tmp = self.grad_db[ k ][ j ]
-                self.grad_db[ k ][ j ] = np.dot( scores, np.vstack( tmp ) ) / cnt
+                tmpdims = len(tmp[0].shape)
+                grads = np.stack( tmp, axis=tmpdims )
+
+                newshape = np.ones((tmpdims+1),dtype=int)
+                newshape[tmpdims] = scores.shape[1]
+                tmpscores = np.reshape( scores, newshape )
+
+                self.grad_db[ k ][ j ] = np.sum( tmpscores * grads, axis=tmpdims ) / cnt
+
 
         return total_score / float(cnt)
 #
@@ -233,7 +226,9 @@ class Q( object ):
             score = self.calc_rolled_out_gradient( cnt=rolloutcnt )
             print "\n%d: %.2f" % ( iter, score )
 
-            results.append( np.copy( self.var_params_db[ "gloc" ][ "p" ] ) )
+            if not self.opt_callback == None:
+                self.opt_callback()
+#            results.append( np.copy( self.var_params_db[ "gloc" ][ "p" ] ) )
             scores.append( score )
 
             for k in self.grad_db:

@@ -1,7 +1,19 @@
 import autograd.numpy as np
 import scipy.stats as ss
+import scipy.special as sp
+
+from autograd.core import primitive
 
 a2d = np.atleast_2d
+
+beta = primitive( sp.beta )
+
+def make_grad_beta( ans, X, sz=(1,1), a=1, b=1 ):
+    def gradient_product( g ):
+        pass
+    return gradient_product
+
+beta.defgrad( make_grad_beta )
 
 #
 # ==================================================================
@@ -56,11 +68,74 @@ class randn_erp:
 
     @staticmethod    
     def new_var_params( sz=(1,1), mu=0.0, sigma=1.0 ):
-        return { "mu": np.zeros( sz ),
+        return { "sz": sz,
+                 "mu": np.zeros( sz ),
                  "sigma": np.ones( sz ) }
 
     @staticmethod
-    def project_params( name, val ):
+    def project_param( name, val ):
+        return val
+
+# -------------------------------------------
+    
+class rand_erp:
+
+    # we use np.abs to cover the case where min > max.  see note below.
+
+    @staticmethod
+    def diffparms():
+        return ["min", "max"]
+
+    @staticmethod
+    def sample( sz=(1,1), min=0, max=1 ):
+        return np.minimum(min,max) + np.abs(max-min) * np.random.rand( sz[0], sz[1] )
+    
+    @staticmethod
+    def score( X, sz=(1,1), min=0, max=1 ):
+        return np.sum( np.log( np.abs(max-min) ) )
+
+    @staticmethod    
+    def new_var_params( sz=(1,1), min=0, max=0 ):
+        return { "sz": sz,
+                 "min": np.zeros(sz),
+                 "max": np.ones(sz) }
+
+    @staticmethod
+    def project_param( name, val ):
+        # XXX one way to project these parameters is to swap the
+        # values if min is ever > max.  But, the API only projects one
+        # parameter at a time, and swapping involves a joint
+        # projection.  that's why we use np.abs to cover the case
+        # where min>max
+        val[ val<0.0 ] = 0.0
+        val[ val>1.0 ] = 1.0
+        return val
+
+# -------------------------------------------
+
+class beta_erp:
+    @staticmethod
+    def diffparms():
+        return ["a", "b"]
+
+    @staticmethod
+    def sample( sz=(1,1), a=1, b=1 ):
+        return np.random.beta( a, b, size=sz )
+
+    # \frac{1}{B(\alpha, \beta)} x^{\alpha - 1}(1 - x)^{\beta - 1}XXX    
+    @staticmethod
+    def score( X, sz=(1,1), a=1, b=1 ):
+        return (1.0/np.beta()) * np.power( X, a-1 ) * np.power( 1.0-X, b-1 )
+
+    @staticmethod    
+    def new_var_params( sz=(1,1), a=1, b=1 ):
+        return { "sz": sz,
+                 "a": np.ones(sz),
+                 "b": np.ones(sz) }
+
+    @staticmethod
+    def project_param( name, val ):
+        val[ val<0.0 ] = 0.0
         return val
 
 # -------------------------------------------
@@ -84,9 +159,11 @@ class flip_erp:
 
     @staticmethod
     def new_var_params( sz=None, p=0.5 ):
+        p = a2d( p )
         if sz == None:
             sz = p.shape
-        return { "p": 0.5*np.ones( sz ) }
+        return { "sz": sz,
+                 "p": 0.5*np.ones( sz ) }
 
     @staticmethod
     def project_param( name, val ):
