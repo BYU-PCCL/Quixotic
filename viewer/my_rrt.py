@@ -5,6 +5,9 @@ STEP_SIZE = .01
 
 # python -m cProfile -s tottime my_rrt.py
 
+def pool_test( x ):
+    return np.random.rand()
+
 # adapted from the original matlab code at
 # http://www.mathworks.com/matlabcentral/fileexchange/27205-fast-line-segment-intersection
 def line_intersect( X1,Y1,X2,Y2, X3,Y3,X4,Y4 ):
@@ -106,7 +109,7 @@ def run_rrt( start_pt, goal_pt, endpoint_a_x, endpoint_a_y, endpoint_b_x, endpoi
         else:
             ndiff = random_point - nearest_point
 
-        ndiff = (scale * STEP_SIZE) * ndiff / np.sqrt( np.sum( ndiff*ndiff ) )
+        ndiff = (scale * STEP_SIZE) * ndiff / np.sqrt( np.sum( ndiff*ndiff ) + 1e-20 )
         new_pt = nearest_point + ndiff
 
         if distance_to_other_points( new_pt, goal_pt ) < (.005 * scale):
@@ -146,7 +149,7 @@ def run_rrt( start_pt, goal_pt, endpoint_a_x, endpoint_a_y, endpoint_b_x, endpoi
             closest_intersection_index = np.argmin( distances )
             new_pt = intersections[ closest_intersection_index:closest_intersection_index+1, : ]
             safety = new_pt - nearest_point
-            safety = scale * 0.001 * safety / np.sqrt( np.sum( safety*safety ) )
+            safety = scale * 0.001 * safety / np.sqrt( np.sum( safety*safety ) + 1e-20 )
             new_pt = new_pt - safety
 
         nodes = np.vstack(( nodes, new_pt ))
